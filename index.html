@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Répertoire d'Ouvertures</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600;700&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Répertoire</h1>
+            <div class="subtitle">Entraînement d'Ouvertures</div>
+        </header>
+
+        <div class="main-content">
+            <div class="control-panel">
+                <div class="section">
+                    <div class="section-title">1. Fichier PGN</div>
+                    <div class="file-input-wrapper">
+                        <button class="file-input-button">Charger un fichier PGN</button>
+                        <input type="file" id="pgnFile" accept=".pgn">
+                    </div>
+                    <div class="file-name" id="fileName"></div>
+                    
+                    <div class="pgn-paste-section">
+                        <div class="paste-label">ou copier-coller le PGN :</div>
+                        <textarea id="pgnTextarea" class="pgn-textarea" placeholder="Collez votre PGN ici..."></textarea>
+                        <button class="paste-button" id="loadPgnButton">Charger le PGN</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">2. Choisir la couleur</div>
+                    <div class="color-selector">
+                        <button class="color-button" data-color="white">
+                            <span class="color-icon white"></span>
+                            Blancs
+                        </button>
+                        <button class="color-button" data-color="black">
+                            <span class="color-icon black"></span>
+                            Noirs
+                        </button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">3. Sélectionner une variante</div>
+                    <div class="variant-list" id="variantList">
+                        <div style="text-align: center; opacity: 0.5; padding: 2rem;">
+                            Chargez un fichier PGN pour voir les variantes
+                        </div>
+                    </div>
+                </div>
+
+                <button class="start-button" id="startButton" disabled>
+                    Commencer l'entraînement
+                </button>
+            </div>
+
+            <div class="chess-area">
+                <div class="status-bar hidden" id="statusBar">
+                    <div class="status-message" id="statusMessage">À vous de jouer !</div>
+                    <div class="move-info" id="moveInfo"></div>
+                </div>
+
+                <div class="chessboard-container">
+                    <div class="chessboard" id="chessboard"></div>
+                </div>
+
+                <div class="controls hidden" id="controls">
+                    <button class="control-btn" id="resetButton">Recommencer</button>
+                    <button class="control-btn" id="hintButton">Indice</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="chess-engine.js"></script>
+    <script src="pgn-parser.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
