@@ -236,6 +236,13 @@ class ChessEngine {
         const piece = this.board[fromRow][fromCol];
         if (!piece) return false;
         
+        // Check for en passant capture
+        if (piece.toUpperCase() === 'P' && fromCol !== toCol && this.board[toRow][toCol] === '') {
+            // This is an en passant capture
+            // Remove the captured pawn which is on the same row as the moving pawn
+            this.board[fromRow][toCol] = '';
+        }
+        
         this.board[toRow][toCol] = piece;
         this.board[fromRow][fromCol] = '';
         return true;
