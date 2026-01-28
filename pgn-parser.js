@@ -121,11 +121,15 @@ class PGNParser {
                     movesBeforeVariation = [...currentMoves];
                     
                     // Extract the move number before this variation
-                    // Look for the last move number in the buffer
+                    // First try to find it explicitly in the buffer
                     const allMoveNums = buffer.match(/(\d+)\./g);
                     if (allMoveNums && allMoveNums.length > 0) {
                         const lastMoveNum = allMoveNums[allMoveNums.length - 1];
                         moveNumberBeforeVariation = parseInt(lastMoveNum);
+                    } else {
+                        // If not found in buffer, calculate from the number of moves
+                        // Each pair of moves (white + black) = 1 move number
+                        moveNumberBeforeVariation = Math.floor(currentMoves.length / 2) + 1;
                     }
                     
                     buffer = '';
@@ -140,9 +144,26 @@ class PGNParser {
                     
                     // Get the first move of this variation for naming
                     const firstMove = this.getFirstMoveFromText(variationText);
-                    const varName = moveNumberBeforeVariation && firstMove 
-                        ? `${moveNumberBeforeVariation}.${firstMove}`
-                        : 'Variation';
+                    
+                    // Debug: log if firstMove is null
+                    if (!firstMove) {
+                        console.warn('Failed to extract first move from variation:', variationText);
+                    }
+                    
+                    // Always include move number if we have the first move
+                    let varName;
+                    if (firstMove) {
+                        // If we have a move number, use it
+                        if (moveNumberBeforeVariation) {
+                            varName = `${moveNumberBeforeVariation}.${firstMove}`;
+                        } else {
+                            // Fallback: just use the move
+                            varName = firstMove;
+                        }
+                    } else {
+                        // No move found at all
+                        varName = moveNumberBeforeVariation ? `${moveNumberBeforeVariation}.?` : 'Variation';
+                    }
                     
                     // Create full path for nested variations
                     const fullPath = parentPath ? `${parentPath} → ${varName}` : varName;
@@ -188,11 +209,40 @@ class PGNParser {
 
     // Get first move from variation text for naming
     getFirstMoveFromText(text) {
-        // Remove move numbers and get first actual move
+        // Clean the text first
         const cleaned = text.trim();
-        // Match the first move notation (after potential move number)
-        const match = cleaned.match(/(?:\d+\.+\s*)?([KQRBNP]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?|O-O(?:-O)?)/);
-        return match ? match[1] : null;
+        
+        // Remove the first move number if present (e.g., "10. b4" -> "b4")
+        let moveText = cleaned.replace(/^\d+\.+\s*/, '');
+        
+        // Try to match various move patterns
+        // Patterns: piece moves (Nf3, Bxe5), pawn moves (e4, exd5), castling (O-O, O-O-O)
+        const patterns = [
+            // Castling
+            /^(O-O-O|O-O|0-0-0|0-0)/,
+            // Piece moves with or without capture: Nf3, Bxe5, Qd1, etc.
+            /^([KQRBN][a-h]?[1-8]?x?[a-h][1-8])/,
+            // Pawn captures: exd5, axb4
+            /^([a-h]x[a-h][1-8])/,
+            // Pawn moves: e4, d5, a3
+            /^([a-h][1-8])/
+        ];
+        
+        for (const pattern of patterns) {
+            const match = moveText.match(pattern);
+            if (match) {
+                // Remove annotations like +, #, !, ?
+                return match[1].replace(/[+#!?]/g, '');
+            }
+        }
+        
+        // If nothing matched, try to get the first word that looks like a move
+        const firstWord = moveText.split(/\s+/)[0];
+        if (firstWord && firstWord.length >= 2) {
+            return firstWord.replace(/[+#!?]/g, '');
+        }
+        
+        return null;
     }
 
     // Clean and parse moves (without variations)
