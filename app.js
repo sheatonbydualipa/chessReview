@@ -398,12 +398,21 @@ function showValidMoves(row, col) {
 
 // Attempt to make move
 function attemptMove(fromRow, fromCol, toRow, toCol, square) {
-    const moveNotation = chessEngine.constructMoveNotation(fromRow, fromCol, toRow, toCol);
+    const piece = chessEngine.getPieceAt(fromRow, fromCol);
     const expectedMove = moveSequence[currentMoveIndex];
+    
+    // Extract promotion piece from expected move if present
+    let promotionPiece = null;
+    const promoMatch = expectedMove.match(/=([QRBN])/);
+    if (promoMatch) {
+        promotionPiece = promoMatch[1];
+    }
+    
+    const moveNotation = chessEngine.constructMoveNotation(fromRow, fromCol, toRow, toCol, promotionPiece);
     
     if (chessEngine.movesMatch(moveNotation, expectedMove)) {
         // Correct move
-        chessEngine.makeMove(fromRow, fromCol, toRow, toCol);
+        chessEngine.makeMove(fromRow, fromCol, toRow, toCol, promotionPiece);
         selectedSquare = null;
         currentMoveIndex++;
         

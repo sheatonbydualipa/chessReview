@@ -232,7 +232,7 @@ class ChessEngine {
     }
 
     // Make move from coordinates
-    makeMove(fromRow, fromCol, toRow, toCol) {
+    makeMove(fromRow, fromCol, toRow, toCol, promotionPiece = null) {
         const piece = this.board[fromRow][fromCol];
         if (!piece) return false;
         
@@ -243,13 +243,21 @@ class ChessEngine {
             this.board[fromRow][toCol] = '';
         }
         
-        this.board[toRow][toCol] = piece;
+        // Handle pawn promotion
+        if (piece.toUpperCase() === 'P' && (toRow === 0 || toRow === 7)) {
+            const isWhite = piece === piece.toUpperCase();
+            const promo = promotionPiece || 'Q';
+            this.board[toRow][toCol] = isWhite ? promo : promo.toLowerCase();
+        } else {
+            this.board[toRow][toCol] = piece;
+        }
+        
         this.board[fromRow][fromCol] = '';
         return true;
     }
 
     // Construct move notation from coordinates
-    constructMoveNotation(fromRow, fromCol, toRow, toCol) {
+    constructMoveNotation(fromRow, fromCol, toRow, toCol, promotionPiece = null) {
         const piece = this.board[fromRow][fromCol];
         const targetPiece = this.board[toRow][toCol];
         const destSquare = String.fromCharCode(97 + toCol) + (8 - toRow);
@@ -273,6 +281,14 @@ class ChessEngine {
         }
         
         notation += destSquare;
+        
+        // Handle pawn promotion
+        if (piece.toUpperCase() === 'P' && (toRow === 0 || toRow === 7)) {
+            // If promotion piece is provided, use it; otherwise default to Queen
+            const promo = promotionPiece || 'Q';
+            notation += '=' + promo;
+        }
+        
         return notation;
     }
 
