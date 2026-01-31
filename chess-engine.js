@@ -131,6 +131,26 @@ class ChessEngine {
         return true;
     }
 
+    // Check if path is clear for sliding pieces (Rook, Bishop, Queen)
+    isPathClear(fromRow, fromCol, toRow, toCol) {
+        const rowDir = toRow > fromRow ? 1 : (toRow < fromRow ? -1 : 0);
+        const colDir = toCol > fromCol ? 1 : (toCol < fromCol ? -1 : 0);
+        
+        let currentRow = fromRow + rowDir;
+        let currentCol = fromCol + colDir;
+        
+        // Check all squares between start and end (excluding both)
+        while (currentRow !== toRow || currentCol !== toCol) {
+            if (this.board[currentRow][currentCol] !== '') {
+                return false; // Path is blocked
+            }
+            currentRow += rowDir;
+            currentCol += colDir;
+        }
+        
+        return true; // Path is clear
+    }
+
     // Check if piece can reach destination (improved)
     canPieceReach(piece, fromRow, fromCol, toRow, toCol, isCapture = false) {
         const rowDiff = Math.abs(toRow - fromRow);
@@ -149,7 +169,9 @@ class ChessEngine {
                         // Single square forward
                         if (rowMove === 1) return true;
                         // Two squares forward from starting position
-                        if (rowMove === 2 && fromRow === 6) return true;
+                        if (rowMove === 2 && fromRow === 6) {
+                            return this.isPathClear(fromRow, fromCol, toRow, toCol);
+                        }
                     }
                     
                     // Diagonal capture
@@ -165,7 +187,9 @@ class ChessEngine {
                         // Single square forward
                         if (rowMove === 1) return true;
                         // Two squares forward from starting position
-                        if (rowMove === 2 && fromRow === 1) return true;
+                        if (rowMove === 2 && fromRow === 1) {
+                            return this.isPathClear(fromRow, fromCol, toRow, toCol);
+                        }
                     }
                     
                     // Diagonal capture
@@ -178,12 +202,21 @@ class ChessEngine {
             case 'N':
                 return (rowDiff === 2 && colDiff === 1) || (rowDiff === 1 && colDiff === 2);
             case 'B':
-                return rowDiff === colDiff && rowDiff > 0;
+                if (rowDiff === colDiff && rowDiff > 0) {
+                    return this.isPathClear(fromRow, fromCol, toRow, toCol);
+                }
+                return false;
             case 'R':
-                return (rowDiff === 0 && colDiff > 0) || (colDiff === 0 && rowDiff > 0);
+                if ((rowDiff === 0 && colDiff > 0) || (colDiff === 0 && rowDiff > 0)) {
+                    return this.isPathClear(fromRow, fromCol, toRow, toCol);
+                }
+                return false;
             case 'Q':
-                return (rowDiff === colDiff || rowDiff === 0 || colDiff === 0) && 
-                       (rowDiff > 0 || colDiff > 0);
+                if ((rowDiff === colDiff || rowDiff === 0 || colDiff === 0) && 
+                    (rowDiff > 0 || colDiff > 0)) {
+                    return this.isPathClear(fromRow, fromCol, toRow, toCol);
+                }
+                return false;
             case 'K':
                 return rowDiff <= 1 && colDiff <= 1 && (rowDiff > 0 || colDiff > 0);
             default:
