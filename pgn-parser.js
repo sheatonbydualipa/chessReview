@@ -117,19 +117,29 @@ class PGNParser {
                     const movesBeforeVar = this.cleanAndParseMoves(buffer);
                     currentMoves.push(...movesBeforeVar);
                     
-                    // Store moves up to this point for the variation
-                    movesBeforeVariation = [...currentMoves];
+                    // Store moves up to this point for the variation (WITHOUT the last move)
+                    // The last move in currentMoves is the main line move that we're replacing
+                    movesBeforeVariation = currentMoves.slice(0, -1);
                     
                     // Extract the move number before this variation
-                    // First try to find it explicitly in the buffer
-                    const allMoveNums = buffer.match(/(\d+)\./g);
-                    if (allMoveNums && allMoveNums.length > 0) {
-                        const lastMoveNum = allMoveNums[allMoveNums.length - 1];
-                        moveNumberBeforeVariation = parseInt(lastMoveNum);
+                    // We need to look at what move number appears in the variation itself
+                    // Peek ahead to see if the variation starts with a move number
+                    const peekAhead = movesText.substring(i + 1, Math.min(i + 20, movesText.length));
+                    const variationMoveNum = peekAhead.match(/(\d+)\.\.\./);
+                    
+                    if (variationMoveNum) {
+                        // This is a black move variation (e.g., "11... dxc3")
+                        moveNumberBeforeVariation = parseInt(variationMoveNum[1]);
                     } else {
-                        // If not found in buffer, calculate from the number of moves
-                        // Each pair of moves (white + black) = 1 move number
-                        moveNumberBeforeVariation = Math.floor(currentMoves.length / 2) + 1;
+                        // Try to find the last move number in the buffer
+                        const allMoveNums = buffer.match(/(\d+)\./g);
+                        if (allMoveNums && allMoveNums.length > 0) {
+                            const lastMoveNum = allMoveNums[allMoveNums.length - 1];
+                            moveNumberBeforeVariation = parseInt(lastMoveNum);
+                        } else {
+                            // Fallback: calculate from the number of moves
+                            moveNumberBeforeVariation = Math.floor(movesBeforeVariation.length / 2) + 1;
+                        }
                     }
                     
                     buffer = '';
@@ -171,7 +181,7 @@ class PGNParser {
                     // Parse the variation recursively - pass the moves before the variation as parent
                     const variationResult = this.parseMovesWithVariations(
                         variationText, 
-                        movesBeforeVariation.slice(0, -1), // Remove the last move (the one we're deviating from)
+                        movesBeforeVariation, // Use the sequence before the last move
                         moveNumberBeforeVariation,
                         fullPath
                     );
@@ -247,8 +257,8 @@ class PGNParser {
 
     // Clean and parse moves (without variations)
     cleanAndParseMoves(movesText) {
-        // Remove move numbers
-        movesText = movesText.replace(/\d+\.\s*/g, '');
+        // Remove move numbers (handles both "11." and "11...")
+        movesText = movesText.replace(/\d+\.+\s*/g, '');
         
         // Remove extra whitespace
         movesText = movesText.replace(/\s+/g, ' ').trim();
