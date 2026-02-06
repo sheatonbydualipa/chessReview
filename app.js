@@ -5,6 +5,7 @@ let chessEngine = new ChessEngine();
 let pgnParser = new PGNParser();
 let selectedColor = null;
 let selectedVariant = null;
+let isRandomMode = false;
 let currentMoveIndex = 0;
 let selectedSquare = null;
 let isTraining = false;
@@ -17,6 +18,7 @@ const pgnTextarea = document.getElementById('pgnTextarea');
 const loadPgnButton = document.getElementById('loadPgnButton');
 const colorButtons = document.querySelectorAll('.color-button');
 const variantList = document.getElementById('variantList');
+const randomButton = document.getElementById('randomButton');
 const startButton = document.getElementById('startButton');
 const chessboard = document.getElementById('chessboard');
 const statusBar = document.getElementById('statusBar');
@@ -83,6 +85,7 @@ function setupEventListeners() {
         button.addEventListener('click', () => handleColorSelection(button));
     });
     
+    randomButton.addEventListener('click', handleRandomMode);
     startButton.addEventListener('click', startTraining);
     resetButton.addEventListener('click', resetTraining);
     hintButton.addEventListener('click', showHint);
@@ -158,9 +161,11 @@ function displayVariants(games) {
 // Select variant
 function selectVariant(index) {
     selectedVariant = index;
+    isRandomMode = false;
     document.querySelectorAll('.variant-item').forEach((item, i) => {
         item.classList.toggle('active', i === index);
     });
+    randomButton.classList.remove('active');
     checkCanStart();
 }
 
@@ -172,9 +177,36 @@ function handleColorSelection(button) {
     checkCanStart();
 }
 
+// Handle random mode
+function handleRandomMode() {
+    if (pgnParser.getGameCount() === 0) {
+        alert('Veuillez d\'abord charger un fichier PGN');
+        return;
+    }
+    
+    isRandomMode = true;
+    selectedVariant = null;
+    
+    // Désactiver toutes les variantes sélectionnées
+    document.querySelectorAll('.variant-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Activer le bouton aléatoire
+    randomButton.classList.add('active');
+    
+    checkCanStart();
+}
+
+// Select random variant
+function selectRandomVariant() {
+    const totalVariants = pgnParser.getGameCount();
+    return Math.floor(Math.random() * totalVariants);
+}
+
 // Check if can start training
 function checkCanStart() {
-    const canStart = pgnParser.getGameCount() > 0 && selectedColor && selectedVariant !== null;
+    const canStart = pgnParser.getGameCount() > 0 && selectedColor && (selectedVariant !== null || isRandomMode);
     startButton.disabled = !canStart;
 }
 
@@ -184,11 +216,26 @@ function startTraining() {
     currentMoveIndex = 0;
     chessEngine.resetBoard();
     
-    const game = pgnParser.getGame(selectedVariant);
+    // Si mode aléatoire, sélectionner une variante aléatoire
+    let variantIndex;
+    if (isRandomMode) {
+        variantIndex = selectRandomVariant();
+    } else {
+        variantIndex = selectedVariant;
+    }
+    
+    const game = pgnParser.getGame(variantIndex);
     moveSequence = game.moves;
     
     statusBar.classList.remove('hidden');
     controls.classList.remove('hidden');
+    
+    // Afficher le nom de la variante
+    if (isRandomMode) {
+        statusMessage.textContent = `Mode aléatoire: ${game.name}`;
+        statusMessage.style.color = 'var(--accent-gold)';
+        setTimeout(() => updateStatus(), 2000);
+    }
     
     // Flip board if playing as black
     updateBoardOrientation();
@@ -197,9 +244,11 @@ function startTraining() {
     
     // If playing black, make white's first move
     if (selectedColor === 'black') {
-        makeComputerMove();
+        setTimeout(() => makeComputerMove(), isRandomMode ? 2000 : 0);
     } else {
-        updateStatus();
+        if (!isRandomMode) {
+            updateStatus();
+        }
     }
 }
 
@@ -217,12 +266,27 @@ function resetTraining() {
     currentMoveIndex = 0;
     chessEngine.resetBoard();
     selectedSquare = null;
+    
+    // Si mode aléatoire, choisir une nouvelle variante aléatoire
+    if (isRandomMode) {
+        const variantIndex = selectRandomVariant();
+        const game = pgnParser.getGame(variantIndex);
+        moveSequence = game.moves;
+        
+        // Afficher le nom de la nouvelle variante
+        statusMessage.textContent = `Nouvelle variante: ${game.name}`;
+        statusMessage.style.color = 'var(--accent-gold)';
+        setTimeout(() => updateStatus(), 2000);
+    }
+    
     renderBoard();
     
     if (selectedColor === 'black') {
-        makeComputerMove();
+        setTimeout(() => makeComputerMove(), isRandomMode ? 2000 : 0);
     } else {
-        updateStatus();
+        if (!isRandomMode) {
+            updateStatus();
+        }
     }
 }
 
@@ -231,7 +295,13 @@ function updateStatus() {
     if (currentMoveIndex >= moveSequence.length) {
         statusMessage.textContent = 'Variante terminée ! Bravo !';
         statusMessage.style.color = 'var(--accent-gold)';
-        moveInfo.textContent = '';
+        
+        // En mode aléatoire, proposer de continuer
+        if (isRandomMode) {
+            moveInfo.textContent = 'Cliquez sur "Recommencer" pour une nouvelle variante aléatoire';
+        } else {
+            moveInfo.textContent = '';
+        }
         return;
     }
     
