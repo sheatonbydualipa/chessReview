@@ -261,7 +261,56 @@ class ChessEngine {
             }
         }
         
+        // Add castling moves for kings
+        if (piece.toUpperCase() === 'K') {
+            const isWhite = piece === piece.toUpperCase();
+            const kingRow = isWhite ? 7 : 0;
+            
+            // Only check castling if king is on starting square
+            if (row === kingRow && col === 4) {
+                // Kingside castling
+                if (this.canCastle(isWhite, true)) {
+                    validMoves.push({ row: kingRow, col: 6 });
+                }
+                
+                // Queenside castling
+                if (this.canCastle(isWhite, false)) {
+                    validMoves.push({ row: kingRow, col: 2 });
+                }
+            }
+        }
+        
         return validMoves;
+    }
+    
+    // Check if castling is possible
+    canCastle(isWhite, kingside) {
+        const row = isWhite ? 7 : 0;
+        const king = isWhite ? 'K' : 'k';
+        const rook = isWhite ? 'R' : 'r';
+        
+        // Check if king is on starting square
+        if (this.board[row][4] !== king) return false;
+        
+        if (kingside) {
+            // Kingside castling
+            // Check if rook is on h-file
+            if (this.board[row][7] !== rook) return false;
+            
+            // Check if squares between king and rook are empty
+            if (this.board[row][5] !== '' || this.board[row][6] !== '') return false;
+            
+            return true;
+        } else {
+            // Queenside castling
+            // Check if rook is on a-file
+            if (this.board[row][0] !== rook) return false;
+            
+            // Check if squares between king and rook are empty
+            if (this.board[row][1] !== '' || this.board[row][2] !== '' || this.board[row][3] !== '') return false;
+            
+            return true;
+        }
     }
 
     // Make move from coordinates
