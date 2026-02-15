@@ -342,7 +342,7 @@ function makeComputerMove() {
         } else {
             makeComputerMove();
         }
-    }, 500);
+    }, 150);
 }
 
 // Handle square click
@@ -408,20 +408,20 @@ function handleSquareClick(e) {
                                 makeComputerMove();
                             }
                         }
-                    }, 600);
+                    }, 200);
                 } else {
                     // Incorrect castling
                     square.classList.add('incorrect');
                     setTimeout(() => {
                         square.classList.remove('incorrect');
-                    }, 600);
+                    }, 200);
                     
                     statusMessage.textContent = 'Mauvais coup ! Réessayez.';
                     statusMessage.style.color = '#cc3333';
                     
                     setTimeout(() => {
                         updateStatus();
-                    }, 2000);
+                    }, 800);
                 }
                 return;
             }
@@ -504,20 +504,20 @@ function attemptMove(fromRow, fromCol, toRow, toCol, square) {
                     makeComputerMove();
                 }
             }
-        }, 600);
+        }, 200);
     } else {
         // Incorrect move
         square.classList.add('incorrect');
         setTimeout(() => {
             square.classList.remove('incorrect');
-        }, 600);
+        }, 200);
         
         statusMessage.textContent = 'Mauvais coup ! Réessayez.';
         statusMessage.style.color = '#cc3333';
         
         setTimeout(() => {
             updateStatus();
-        }, 2000);
+        }, 800);
     }
 }
 
