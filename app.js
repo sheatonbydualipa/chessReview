@@ -470,6 +470,28 @@ function showValidMoves(row, col) {
 function attemptMove(fromRow, fromCol, toRow, toCol, square) {
     const piece = chessEngine.getPieceAt(fromRow, fromCol);
     const expectedMove = moveSequence[currentMoveIndex];
+    const targetPiece = chessEngine.getPieceAt(toRow, toCol);
+    const isCapture = targetPiece !== '' || (piece.toUpperCase() === 'P' && fromCol !== toCol);
+    
+    // First check if this piece can legally reach the destination
+    if (!chessEngine.canPieceReach(piece, fromRow, fromCol, toRow, toCol, isCapture)) {
+        // This piece cannot make this move according to chess rules
+        square.classList.add('incorrect');
+        setTimeout(() => {
+            square.classList.remove('incorrect');
+        }, 200);
+        
+        statusMessage.textContent = 'Coup illégal !';
+        statusMessage.style.color = '#cc3333';
+        
+        setTimeout(() => {
+            updateStatus();
+        }, 800);
+        
+        selectedSquare = null;
+        renderBoard();
+        return;
+    }
     
     // Extract promotion piece from expected move if present
     let promotionPiece = null;
@@ -518,6 +540,9 @@ function attemptMove(fromRow, fromCol, toRow, toCol, square) {
         setTimeout(() => {
             updateStatus();
         }, 800);
+        
+        selectedSquare = null;
+        renderBoard();
     }
 }
 

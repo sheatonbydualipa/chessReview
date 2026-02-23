@@ -346,19 +346,64 @@ class ChessEngine {
         
         let notation = '';
         
-        // For pawn captures, include the source file
+        // For pawn moves
         if (piece.toUpperCase() === 'P') {
             if (targetPiece || fromCol !== toCol) {
-                // It's a capture or en passant
+                // It's a capture or en passant - always include source file
                 notation = String.fromCharCode(97 + fromCol);
             }
+            // For non-capture pawn moves, notation starts empty (just destination)
         } else {
             // For other pieces, add the piece letter
             notation = piece.toUpperCase();
+            
+            // Check if we need disambiguation (multiple pieces of same type can reach destination)
+            let needsFileDisambiguation = false;
+            let needsRankDisambiguation = false;
+            let sameFile = false;
+            let sameRank = false;
+            
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    // Skip the piece we're moving
+                    if (row === fromRow && col === fromCol) continue;
+                    
+                    // Check if there's another piece of same type that can reach the destination
+                    if (this.board[row][col] === piece) {
+                        const isCapture = targetPiece !== '';
+                        if (this.canPieceReach(piece, row, col, toRow, toCol, isCapture)) {
+                            // Another piece can reach this square - we need disambiguation
+                            if (col === fromCol) {
+                                sameFile = true;
+                                needsRankDisambiguation = true;
+                            } else {
+                                needsFileDisambiguation = true;
+                            }
+                            
+                            if (row === fromRow) {
+                                sameRank = true;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Add disambiguation
+            if (needsFileDisambiguation || needsRankDisambiguation) {
+                if (!sameFile || (sameFile && sameRank)) {
+                    // Add file (column) if pieces are on different files, or if they're on same file AND rank
+                    notation += String.fromCharCode(97 + fromCol);
+                }
+                if (sameFile && !sameRank) {
+                    // Add rank (row) only if on same file but different rank
+                    notation += (8 - fromRow);
+                }
+            }
         }
         
         // Add capture symbol if capturing
-        if (targetPiece) {
+        if (targetPiece || (piece.toUpperCase() === 'P' && fromCol !== toCol && !targetPiece)) {
+            // Add 'x' for captures, including en passant (pawn diagonal move to empty square)
             notation += 'x';
         }
         
@@ -388,8 +433,8 @@ class ChessEngine {
         if (move1 === move2) return true;
         
         // Extract destination squares
-        const dest1 = move1.match(/([a-h][1-8])/);
-        const dest2 = move2.match(/([a-h][1-8])/);
+        const dest1 = move1.match(/([a-h][1-8])(?:=[QRBN])?$/);
+        const dest2 = move2.match(/([a-h][1-8])(?:=[QRBN])?$/);
         
         if (!dest1 || !dest2) return false;
         
@@ -402,7 +447,28 @@ class ChessEngine {
         
         // If both have piece indicators, they should match
         if (piece1 && piece2) {
-            return piece1[1] === piece2[1];
+            if (piece1[1] !== piece2[1]) return false;
+            
+            // For pieces (not pawns), also check disambiguation
+            // Extract file/rank disambiguation from both moves
+            const disambig1 = move1.match(/^[KQRBN]([a-h])?([1-8])?x?[a-h][1-8]/);
+            const disambig2 = move2.match(/^[KQRBN]([a-h])?([1-8])?x?[a-h][1-8]/);
+            
+            // If one has disambiguation and the other doesn't, check if they're compatible
+            if (disambig1 && disambig2) {
+                const file1 = disambig1[1];
+                const rank1 = disambig1[2];
+                const file2 = disambig2[1];
+                const rank2 = disambig2[2];
+                
+                // If both specify file, they must match
+                if (file1 && file2 && file1 !== file2) return false;
+                
+                // If both specify rank, they must match
+                if (rank1 && rank2 && rank1 !== rank2) return false;
+            }
+            
+            return true;
         }
         
         // Check for pawn moves/captures
@@ -424,6 +490,13 @@ class ChessEngine {
                     return sourceFile1[1] === sourceFile2[1];
                 }
             }
+            
+            // Check for promotion
+            const promo1 = move1.match(/=([QRBN])/);
+            const promo2 = move2.match(/=([QRBN])/);
+            
+            // If both have promotion, they should match
+            if (promo1 && promo2 && promo1[1] !== promo2[1]) return false;
             
             return true;
         }
