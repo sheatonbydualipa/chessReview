@@ -10,6 +10,7 @@ let currentMoveIndex = 0;
 let selectedSquare = null;
 let isTraining = false;
 let moveSequence = [];
+let moveComments = {};
 
 // DOM Elements
 const pgnFileInput = document.getElementById('pgnFile');
@@ -226,9 +227,11 @@ function startTraining() {
     
     const game = pgnParser.getGame(variantIndex);
     moveSequence = game.moves;
-    
+    moveComments = game.comments || {};
+
     statusBar.classList.remove('hidden');
     controls.classList.remove('hidden');
+    document.getElementById('moveComment').classList.add('hidden');
     
     // Afficher le nom de la variante
     if (isRandomMode) {
@@ -267,12 +270,15 @@ function resetTraining() {
     chessEngine.resetBoard();
     selectedSquare = null;
     
+    document.getElementById('moveComment').classList.add('hidden');
+
     // Si mode aléatoire, choisir une nouvelle variante aléatoire
     if (isRandomMode) {
         const variantIndex = selectRandomVariant();
         const game = pgnParser.getGame(variantIndex);
         moveSequence = game.moves;
-        
+        moveComments = game.comments || {};
+
         // Afficher le nom de la nouvelle variante
         statusMessage.textContent = `Nouvelle variante: ${game.name}`;
         statusMessage.style.color = 'var(--accent-gold)';
@@ -331,6 +337,7 @@ function makeComputerMove() {
         
         chessEngine.applyMove(move, isWhiteMove);
         currentMoveIndex++;
+        displayMoveComment(currentMoveIndex - 1);
         renderBoard();
         
         // Check if player's turn
@@ -389,6 +396,7 @@ function handleSquareClick(e) {
                     chessEngine.applyMove(castlingNotation, isWhiteMove);
                     selectedSquare = null;
                     currentMoveIndex++;
+                    displayMoveComment(currentMoveIndex - 1);
                     
                     square.classList.add('correct');
                     setTimeout(() => {
@@ -507,6 +515,7 @@ function attemptMove(fromRow, fromCol, toRow, toCol, square) {
         chessEngine.makeMove(fromRow, fromCol, toRow, toCol, promotionPiece);
         selectedSquare = null;
         currentMoveIndex++;
+        displayMoveComment(currentMoveIndex - 1);
         
         square.classList.add('correct');
         setTimeout(() => {
@@ -543,6 +552,18 @@ function attemptMove(fromRow, fromCol, toRow, toCol, square) {
         
         selectedSquare = null;
         renderBoard();
+    }
+}
+
+// Display PGN comment for the given move index
+function displayMoveComment(moveIndex) {
+    const commentDiv = document.getElementById('moveComment');
+    const comment = moveComments[moveIndex];
+    if (comment) {
+        commentDiv.textContent = comment;
+        commentDiv.classList.remove('hidden');
+    } else {
+        commentDiv.classList.add('hidden');
     }
 }
 

@@ -109,6 +109,10 @@ class ChessEngine {
                     
                     // Check if piece can reach destination
                     if (this.canPieceReach(piece, row, col, destRow, destCol, isCapture)) {
+                        // Handle en passant: pawn captures diagonally to empty square
+                        if (piece.toUpperCase() === 'P' && col !== destCol && this.board[destRow][destCol] === '') {
+                            this.board[row][destCol] = '';
+                        }
                         this.board[destRow][destCol] = piece;
                         this.board[row][col] = '';
                         foundPiece = true;

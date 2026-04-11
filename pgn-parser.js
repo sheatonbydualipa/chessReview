@@ -38,10 +38,7 @@ class PGNParser {
             }
         });
         
-        // Remove comments in braces
-        movesText = movesText.replace(/\{[^}]*\}/g, '');
-        
-        // Extract all variations
+        // Extract all variations (comments are preserved for parsing)
         const allVariations = this.extractAllVariations(movesText);
         
         if (allVariations.length === 0) return null;
@@ -64,6 +61,7 @@ class PGNParser {
             return {
                 headers,
                 moves: variation.moves,
+                comments: variation.comments || {},
                 name: variantName,
                 deviationPoint: variation.deviationPoint
             };
@@ -73,152 +71,164 @@ class PGNParser {
     // Extract all variations from moves text
     extractAllVariations(movesText) {
         const variations = [];
-        
+
         // Parse the main line and all variations
-        const parseResult = this.parseMovesWithVariations(movesText, [], null, '');
-        
+        const parseResult = this.parseMovesWithVariations(movesText, [], {}, null, '');
+
         // Main line
         if (parseResult.mainLine.length > 0) {
             variations.push({
                 moves: parseResult.mainLine,
+                comments: parseResult.mainLineComments,
                 name: 'Ligne principale',
                 deviationPoint: null
             });
         }
-        
+
         // All variations
         parseResult.variations.forEach(v => {
             variations.push(v);
         });
-        
+
         return variations;
     }
 
     // Parse moves with variations (recursive)
-    parseMovesWithVariations(movesText, parentMoves = [], deviationMoveNumber = null, parentPath = '') {
+    parseMovesWithVariations(movesText, parentMoves = [], parentComments = {}, deviationMoveNumber = null, parentPath = '') {
         const result = {
             mainLine: [],
+            mainLineComments: {},
             variations: []
         };
-        
+
         let currentMoves = [...parentMoves];
+        let currentComments = {...parentComments};
         let buffer = '';
         let depth = 0;
+        let inComment = false;
         let variationStart = -1;
         let moveNumberBeforeVariation = null;
         let movesBeforeVariation = [];
-        
+        let commentsBeforeVariation = {};
+
         for (let i = 0; i < movesText.length; i++) {
             const char = movesText[i];
-            
-            if (char === '(') {
+
+            if (char === '{' && !inComment) {
+                inComment = true;
+                if (depth === 0) buffer += char;
+            } else if (char === '}' && inComment) {
+                inComment = false;
+                if (depth === 0) buffer += char;
+            } else if (!inComment && char === '(') {
                 if (depth === 0) {
-                    // Process moves before variation
-                    const movesBeforeVar = this.cleanAndParseMoves(buffer);
+                    // Process moves before variation (preserving comments in buffer)
+                    const {moves: movesBeforeVar, comments: segComments} = this.cleanAndParseMovesWithComments(buffer);
+
+                    // Merge segment comments with offset
+                    for (const [idx, comment] of Object.entries(segComments)) {
+                        currentComments[currentMoves.length + parseInt(idx)] = comment;
+                    }
                     currentMoves.push(...movesBeforeVar);
-                    
-                    // Store moves up to this point for the variation (WITHOUT the last move)
-                    // The last move in currentMoves is the main line move that we're replacing
+
+                    // Store moves/comments up to this point for the variation (WITHOUT the last move)
                     movesBeforeVariation = currentMoves.slice(0, -1);
-                    
+                    commentsBeforeVariation = {};
+                    for (const [idx, comment] of Object.entries(currentComments)) {
+                        if (parseInt(idx) < movesBeforeVariation.length) {
+                            commentsBeforeVariation[parseInt(idx)] = comment;
+                        }
+                    }
+
                     // Extract the move number before this variation
-                    // We need to look at what move number appears in the variation itself
-                    // Peek ahead to see if the variation starts with a move number
                     const peekAhead = movesText.substring(i + 1, Math.min(i + 20, movesText.length));
                     const variationMoveNum = peekAhead.match(/(\d+)\.\.\./);
-                    
+
                     if (variationMoveNum) {
-                        // This is a black move variation (e.g., "11... dxc3")
                         moveNumberBeforeVariation = parseInt(variationMoveNum[1]);
                     } else {
-                        // Try to find the last move number in the buffer
                         const allMoveNums = buffer.match(/(\d+)\./g);
                         if (allMoveNums && allMoveNums.length > 0) {
-                            const lastMoveNum = allMoveNums[allMoveNums.length - 1];
-                            moveNumberBeforeVariation = parseInt(lastMoveNum);
+                            moveNumberBeforeVariation = parseInt(allMoveNums[allMoveNums.length - 1]);
                         } else {
-                            // Fallback: calculate from the number of moves
                             moveNumberBeforeVariation = Math.floor(movesBeforeVariation.length / 2) + 1;
                         }
                     }
-                    
+
                     buffer = '';
                     variationStart = i + 1;
                 }
                 depth++;
-            } else if (char === ')') {
+            } else if (!inComment && char === ')') {
                 depth--;
                 if (depth === 0) {
-                    // Extract variation
+                    // Extract variation text (includes comments inside it)
                     const variationText = movesText.substring(variationStart, i);
-                    
-                    // Get the first move of this variation for naming
+
+                    // Get the first move of this variation for naming (strip comments first)
                     const firstMove = this.getFirstMoveFromText(variationText);
-                    
-                    // Debug: log if firstMove is null
+
                     if (!firstMove) {
                         console.warn('Failed to extract first move from variation:', variationText);
                     }
-                    
-                    // Always include move number if we have the first move
+
                     let varName;
                     if (firstMove) {
-                        // If we have a move number, use it
-                        if (moveNumberBeforeVariation) {
-                            varName = `${moveNumberBeforeVariation}.${firstMove}`;
-                        } else {
-                            // Fallback: just use the move
-                            varName = firstMove;
-                        }
+                        varName = moveNumberBeforeVariation ? `${moveNumberBeforeVariation}.${firstMove}` : firstMove;
                     } else {
-                        // No move found at all
                         varName = moveNumberBeforeVariation ? `${moveNumberBeforeVariation}.?` : 'Variation';
                     }
-                    
-                    // Create full path for nested variations
+
                     const fullPath = parentPath ? `${parentPath} → ${varName}` : varName;
-                    
-                    // Parse the variation recursively - pass the moves before the variation as parent
+
+                    // Parse the variation recursively
                     const variationResult = this.parseMovesWithVariations(
-                        variationText, 
-                        movesBeforeVariation, // Use the sequence before the last move
+                        variationText,
+                        movesBeforeVariation,
+                        commentsBeforeVariation,
                         moveNumberBeforeVariation,
                         fullPath
                     );
-                    
-                    // Add as a variation
+
                     if (variationResult.mainLine.length > 0) {
                         result.variations.push({
                             moves: variationResult.mainLine,
+                            comments: variationResult.mainLineComments,
                             name: fullPath,
                             deviationPoint: moveNumberBeforeVariation
                         });
                     }
-                    
-                    // Also add nested variations
+
                     result.variations.push(...variationResult.variations);
-                    
+
                     variationStart = -1;
                     moveNumberBeforeVariation = null;
                     movesBeforeVariation = [];
+                    commentsBeforeVariation = {};
                 }
             } else if (depth === 0) {
                 buffer += char;
             }
         }
-        
+
         // Process remaining moves
         if (buffer.trim()) {
-            const remainingMoves = this.cleanAndParseMoves(buffer);
+            const {moves: remainingMoves, comments: remainingComments} = this.cleanAndParseMovesWithComments(buffer);
+            for (const [idx, comment] of Object.entries(remainingComments)) {
+                currentComments[currentMoves.length + parseInt(idx)] = comment;
+            }
             currentMoves.push(...remainingMoves);
         }
-        
+
         result.mainLine = currentMoves;
+        result.mainLineComments = currentComments;
         return result;
     }
 
     // Get first move from variation text for naming
     getFirstMoveFromText(text) {
+        // Strip comments before processing
+        text = text.replace(/\{[^}]*\}/g, '');
         // Clean the text first
         const cleaned = text.trim();
         
@@ -253,6 +263,29 @@ class PGNParser {
         }
         
         return null;
+    }
+
+    // Parse moves and extract their associated comments from a flat text segment
+    cleanAndParseMovesWithComments(movesText) {
+        const moves = [];
+        const comments = {};
+
+        // Split by comment blocks, keeping the delimiters
+        const segments = movesText.split(/(\{[^}]*\})/);
+
+        for (const segment of segments) {
+            if (segment.startsWith('{') && segment.endsWith('}')) {
+                // Associate comment with the last move parsed so far
+                if (moves.length > 0) {
+                    comments[moves.length - 1] = segment.slice(1, -1).trim();
+                }
+            } else {
+                const segMoves = this.cleanAndParseMoves(segment);
+                moves.push(...segMoves);
+            }
+        }
+
+        return { moves, comments };
     }
 
     // Clean and parse moves (without variations)

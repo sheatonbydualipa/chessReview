@@ -557,6 +557,23 @@ h1 {
     }
 }
 
+.move-comment {
+    width: 100%;
+    max-width: 600px;
+    background: rgba(212, 175, 55, 0.08);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-left: 3px solid var(--accent-gold);
+    border-radius: 4px;
+    padding: 1rem 1.5rem;
+    margin-top: 1.5rem;
+    font-style: italic;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--chess-light);
+    opacity: 0.85;
+    animation: fadeIn 0.4s ease-out;
+}
+
 .hidden {
     display: none !important;
 }
